@@ -4,7 +4,7 @@ import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
 
 interface Props { 
-  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => void | Promise<void>
+  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; welcomeEmailSent: boolean }>
   onBack: () => void 
   onOpenLegal: (document: 'terms' | 'privacy') => void
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
@@ -20,6 +20,8 @@ export default function RegisterPage({ onRegister, onBack, onOpenLegal, onGoogle
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+  const [welcomeEmailSent, setWelcomeEmailSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   
@@ -34,13 +36,16 @@ export default function RegisterPage({ onRegister, onBack, onOpenLegal, onGoogle
 
     setIsLoading(true)
     try {
-      await onRegister(name, email, phone, password, passwordConfirmation)
+      const result = await onRegister(name, email, phone, password, passwordConfirmation)
+      setCreatedEmail(result.email)
+      setWelcomeEmailSent(result.welcomeEmailSent)
     } catch (err: any) {
       setError(err?.message || 'Registration failed. Please check your information.')
+    } finally {
       setIsLoading(false)
     }
   }
-  
+
   return (
     <div className={`auth-layout register-layout${modal ? ' auth-modal-form' : ''}`}>
       <aside className="auth-story">
@@ -70,7 +75,15 @@ export default function RegisterPage({ onRegister, onBack, onOpenLegal, onGoogle
             </div>
           )}
 
-          <form onSubmit={submit}>
+          {createdEmail ? (
+            <div className={`auth-feedback ${welcomeEmailSent ? 'auth-feedback-success' : 'auth-feedback-error'}`} role="status">
+              <p>Account created for <strong>{createdEmail}</strong>.</p>
+              <p>{welcomeEmailSent
+                ? 'A welcome email has been sent. You can sign in now.'
+                : 'The account was created, but the welcome email could not be sent. You can still sign in.'}</p>
+              <button className="button button-primary auth-submit" type="button" onClick={onBack}>Continue to sign in</button>
+            </div>
+          ) : <form onSubmit={submit}>
             <label className="field-label">
               Full name
               <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" disabled={isLoading} />
@@ -98,8 +111,8 @@ export default function RegisterPage({ onRegister, onBack, onOpenLegal, onGoogle
               <input type="checkbox" required checked={acceptedTerms} onChange={(event) => onAcceptedTermsChange(event.target.checked)} disabled={isLoading} />
               <span>I agree to the <button type="button" className="legal-link" onClick={() => onOpenLegal('terms')}>Terms and Conditions</button> and <button type="button" className="legal-link" onClick={() => onOpenLegal('privacy')}>Privacy Policy</button>.</span>
             </label>
-          </form>
-          <div className="auth-divider"><span>Or sign up with</span></div>
+          </form>}
+          {!createdEmail && <><div className="auth-divider"><span>Or sign up with</span></div>
           <GoogleSignInButton
             intent="sign_up"
             onCredential={async (idToken, intent) => {
@@ -110,6 +123,7 @@ export default function RegisterPage({ onRegister, onBack, onOpenLegal, onGoogle
               await onGoogleSignIn(idToken, intent)
             }}
           />
+          </>}
         </div>
         <span className="auth-help">Already have an account? <a href="#login" onClick={onBack}>Sign in</a></span>
       </main>

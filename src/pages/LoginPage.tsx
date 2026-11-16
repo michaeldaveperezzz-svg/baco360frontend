@@ -7,7 +7,6 @@ interface Props {
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
   onRegister: () => void 
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
-  successMessage?: string | null
   modal: true
 }
 
@@ -21,7 +20,7 @@ function getErrorMessage(reason: unknown): string | null {
   return null
 }
 
-export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, successMessage, modal }: Props) {
+export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [credentialsEditable, setCredentialsEditable] = useState(false)
@@ -113,11 +112,6 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, success
           {error && (
             <div className="auth-feedback auth-feedback-error">
               {error}
-            </div>
-          )}
-          {successMessage && (
-            <div className="auth-feedback auth-feedback-success">
-              {successMessage}
             </div>
           )}
           <form onSubmit={submit} autoComplete="new-password">

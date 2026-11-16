@@ -25,7 +25,7 @@ export interface RegisterData {
 
 export interface RegisterResponse {
   email: string
-  verification_required: false
+  welcome_email_sent: boolean
 }
 
 /**

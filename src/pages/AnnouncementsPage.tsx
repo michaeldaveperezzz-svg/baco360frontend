@@ -229,13 +229,23 @@ export default function AnnouncementsPage({ role, language, currentUserId }: Pro
       setTitle('')
       setMessage('')
       setRecipientModalOpen(false)
-      setSuccessMessage(response.data.audit_warning
-        ? (isTagalog
-          ? 'Naipublish ang announcement, pero hindi na-save ang activity log. Ipaalam ito sa administrator.'
-          : 'The announcement was published, but its activity log could not be saved. Please notify an administrator.')
+      const { email_delivery: delivery } = response.data
+      const deliverySummary = delivery.failed > 0
+        ? (delivery.configured
+          ? (isTagalog ? `${delivery.sent} email ang naipadala; ${delivery.failed} ang pumalya.` : `${delivery.sent} emails sent; ${delivery.failed} failed.`)
+          : (isTagalog ? `${delivery.failed} email ang hindi naipadala dahil hindi naka-configure ang mailer.` : `${delivery.failed} emails were not sent because the mailer is not configured.`))
         : (isTagalog
-          ? `Naipublish para sa ${response.data.recipient_count} na recipient. Ipapadala ang email ayon sa kanilang email settings.`
-          : `Published for ${response.data.recipient_count} recipient${response.data.recipient_count === 1 ? '' : 's'}. Email delivery follows their email settings.`))
+          ? `${delivery.sent} email ang naipadala; ${delivery.skipped} recipient ang hindi kwalipikadong makatanggap ng email.`
+          : `${delivery.sent} emails sent; ${delivery.skipped} recipients were not eligible for email.`)
+      const auditWarning = isTagalog
+        ? ' Hindi na-save ang activity log.'
+        : ' The activity log could not be saved.'
+      setSuccessMessage(
+        (isTagalog
+          ? `Naipublish para sa ${response.data.recipient_count} na recipient. ${deliverySummary}`
+          : `Published for ${response.data.recipient_count} recipient${response.data.recipient_count === 1 ? '' : 's'}. ${deliverySummary}`)
+        + (response.data.audit_warning ? auditWarning : '')
+      )
       await loadAnnouncements()
     } catch (publishError) {
       setError(getErrorMessage(publishError, 'Hindi naipublish ang announcement.'))

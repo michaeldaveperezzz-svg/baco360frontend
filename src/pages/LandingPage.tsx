@@ -7,9 +7,8 @@ import { websiteContentImageUrl, websiteContentService, type WebsiteContentData 
 
 interface Props {
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
-  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => void | Promise<void>
+  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; welcomeEmailSent: boolean }>
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
-  successMessage?: string | null
 }
 
 const faqs = [
@@ -35,7 +34,7 @@ function LandingBrand({ footer = false, siteName, logoPath }: { footer?: boolean
   </div>
 }
 
-export default function LandingPage({ onLogin, onRegister, onGoogleSignIn, successMessage }: Props) {
+export default function LandingPage({ onLogin, onRegister, onGoogleSignIn }: Props) {
   const [authModal, setAuthModal] = useState<'sign-in' | 'sign-up' | null>(null)
   const [legalModal, setLegalModal] = useState<'terms' | 'privacy' | null>(null)
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false)
@@ -69,11 +68,6 @@ export default function LandingPage({ onLogin, onRegister, onGoogleSignIn, succe
     void loadWebsiteContent()
     return () => { active = false }
   }, [])
-
-  async function submitRegistration(...args: Parameters<Props['onRegister']>) {
-    await onRegister(...args)
-    openAuthModal('sign-in')
-  }
 
   function openAuthModal(next: 'sign-in' | 'sign-up' | null) {
     setSignupTermsAccepted(false)
@@ -279,8 +273,8 @@ export default function LandingPage({ onLogin, onRegister, onGoogleSignIn, succe
         <button className="landing-auth-close" type="button" aria-label="Close dialog" onClick={closeAuthModal}><X size={19} /></button>
         <div className="landing-auth-dialog-scroll">
           {authModal === 'sign-in'
-            ? <LoginPage modal onLogin={onLogin} onRegister={() => openAuthModal('sign-up')} onGoogleSignIn={onGoogleSignIn} successMessage={successMessage} />
-            : <RegisterPage modal onRegister={submitRegistration} onBack={() => openAuthModal('sign-in')} onOpenLegal={setLegalModal} onGoogleSignIn={onGoogleSignIn} onRequireGoogleSignupConsent={requestGoogleSignupConsent} acceptedTerms={signupTermsAccepted} onAcceptedTermsChange={setSignupTermsAccepted} />}
+            ? <LoginPage modal onLogin={onLogin} onRegister={() => openAuthModal('sign-up')} onGoogleSignIn={onGoogleSignIn} />
+            : <RegisterPage modal onRegister={onRegister} onBack={() => openAuthModal('sign-in')} onOpenLegal={setLegalModal} onGoogleSignIn={onGoogleSignIn} onRequireGoogleSignupConsent={requestGoogleSignupConsent} acceptedTerms={signupTermsAccepted} onAcceptedTermsChange={setSignupTermsAccepted} />}
         </div>
       </section>
       {legalModal && <div className="landing-legal-backdrop" role="presentation" onMouseDown={(event) => {

@@ -68,7 +68,6 @@ function AppContent() {
   })
   const [hasAnnouncementDeepLink] = useState(() => new URLSearchParams(window.location.search).get('announcements') === '1')
   const [pendingAuthEmail, setPendingAuthEmail] = useState('')
-  const [loginSuccessMessage, setLoginSuccessMessage] = useState<string | null>(null)
   const [successNotice, setSuccessNotice] = useState<{ id: number; message: string } | null>(null)
   const nextSuccessIdRef = useRef(0)
   const deepLinkHandledRef = useRef(false)
@@ -399,7 +398,6 @@ function AppContent() {
 
   async function handleLogin(email: string, password: string, remember: boolean, reactivate = false) {
     setPendingAuthEmail('')
-    setLoginSuccessMessage(null)
     const result = await login(email, password, remember, reactivate)
     if (result.requires2FA) {
       setPendingAuthEmail(email)
@@ -407,13 +405,12 @@ function AppContent() {
     }
   }
   async function handle2FAVerify(code: string, email: string) { await verify2FA(code, email) }
-  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<void> {
+  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<{ email: string; welcomeEmailSent: boolean }> {
     const response = await authService.register({ name, email, phone, password, password_confirmation: passwordConfirmation })
-    if (!response.success) throw new Error(response.message || 'Registration failed')
-    setLoginSuccessMessage('Account created. You can now sign in.')
+    if (!response.success || !response.data) throw new Error(response.message || 'Registration failed')
+    return { email: response.data.email, welcomeEmailSent: response.data.welcome_email_sent }
   }
   async function handleGoogleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') {
-    setLoginSuccessMessage(null)
     const response = await authService.googleSignIn(idToken, intent)
     const result = response.data
     if (!response.success || !result?.user || !result.tokens?.access_token || !result.tokens?.refresh_token) {
@@ -513,7 +510,7 @@ function AppContent() {
   async function handleLogout() { await logout(); setView('landing'); setIsEmergencyContactsModalOpen(false); setReports([]); setCategories([]); setUsers([]) }
 
   if (isAuthLoading) return <div className="auth-loading" role="status">Restoring your session...</div>
-  if (view === 'landing') return <LandingPage onLogin={handleLogin} onRegister={registerUser} onGoogleSignIn={handleGoogleSignIn} successMessage={loginSuccessMessage} />
+  if (view === 'landing') return <LandingPage onLogin={handleLogin} onRegister={registerUser} onGoogleSignIn={handleGoogleSignIn} />
   if (view === '2fa') return <><div className="auth-wrapper"><LanguageSelect language={language} onLanguageChange={changeLanguage} /><TwoFactorAuthPage email={pendingAuthEmail} onVerify={handle2FAVerify} onBack={() => setView('landing')} /></div></>
   return <>
     <div className={`app-shell${role === 'resident' ? ' app-shell--resident' : ''}`}>

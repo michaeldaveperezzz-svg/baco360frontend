@@ -10,6 +10,14 @@ export interface AnnouncementRecipient {
 
 export type AnnouncementAudience = 'all_staff' | 'all_residents' | 'specific_users'
 
+export interface AnnouncementEmailDelivery {
+  configured: boolean
+  attempted: number
+  sent: number
+  failed: number
+  skipped: number
+}
+
 function eventDateTime(value: string) {
   return value.length === 16 ? `${value.replace('T', ' ')}:00` : value
 }
@@ -47,7 +55,7 @@ export const announcementsService = {
     })
   },
 
-  async publish(title: string, message: string, audience: AnnouncementAudience, recipientIds: number[] = []): Promise<ApiResponse<{ announcement: Announcement; recipient_count: number; audit_warning: boolean }>> {
+  async publish(title: string, message: string, audience: AnnouncementAudience, recipientIds: number[] = []): Promise<ApiResponse<{ announcement: Announcement; recipient_count: number; email_delivery: AnnouncementEmailDelivery; audit_warning: boolean }>> {
     return apiRequest({
       method: 'POST',
       url: API_ENDPOINTS.PUBLISH_ANNOUNCEMENT,

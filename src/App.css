@@ -1132,6 +1132,10 @@ input[type='checkbox'] { width: 13px; height: 13px; margin: 0; accent-color: var
 .auth-submit svg { margin-left: auto; }
 .auth-submit { position: relative; }
 .auth-submit svg { position: absolute; right: 12px; }
+.login-layout .auth-card > .legal-link { display: block; max-width: 100%; margin: 10px auto 0; padding: 2px 6px; border: 0; color: #315bd5; background: transparent; font: inherit; font-size: 12px; line-height: 1.5; text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.login-layout .auth-card > .legal-link:hover { color: #0a194e; }
+.login-layout .auth-card > .legal-link:focus-visible { border-radius: 3px; outline: 2px solid #7898ed; outline-offset: 2px; }
+.login-layout .auth-card > .legal-link:disabled { color: #65738a; cursor: not-allowed; }
 .auth-divider { margin: 22px 0 16px; display: flex; align-items: center; gap: 10px; color: #9ba59e; font-size: 11px; }
 .auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: #edf0ec; }
 .google-signin { width: 100%; }

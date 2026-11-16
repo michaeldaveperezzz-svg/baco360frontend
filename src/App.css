@@ -1741,8 +1741,31 @@ input[type='checkbox'] { width: 13px; height: 13px; margin: 0; accent-color: var
 .account-action-dialog { width: min(440px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 21px; border: 1px solid #e4e9e4; border-radius: 10px; color: #53635a; background: #fff; box-shadow: 0 20px 60px rgba(13, 25, 19, .22); }
 .account-action-dialog > header { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .account-action-dialog > header h2 { margin: 0; color: #263d31; font-size: 18px; }
+.auth-dialog-heading { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.auth-dialog-heading > div { min-width: 0; display: grid; gap: 3px; }
+.auth-dialog-heading small { color: #8491a4; font-size: 11px; font-weight: 650; }
+.auth-dialog-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border: 1px solid #dce5fb; border-radius: 11px; color: #315bd5; background: #f1f5ff; }
+.auth-dialog-icon.is-success { border-color: #d3eadb; color: #287348; background: #eff8f1; }
+.auth-dialog-icon.is-error { border-color: #f1d2ce; color: #a53d33; background: #fff5f3; }
+.account-action-dialog.auth-light-dialog { color-scheme: light; border-color: #dce4f2; color: #53647a; background: #fff; box-shadow: 0 24px 70px rgba(12, 31, 69, .2); }
+.auth-light-dialog > header h2 { color: #0a194e; font-size: 20px; letter-spacing: -.2px; }
+.auth-light-dialog > p { color: #64738a; }
+.auth-light-dialog .account-action-form label { color: #465777; }
+.auth-light-dialog .account-action-form input { color-scheme: light; border-color: #dce4f2; color: #34445f; background: #fff; }
+.auth-light-dialog .account-action-form input:focus { border-color: #7898ed; outline: 0; box-shadow: 0 0 0 3px rgba(49, 91, 213, .12); }
+.auth-light-dialog .account-action-primary { background: #0a194e; }
+.auth-light-dialog .account-action-primary:hover { background: #142d78; }
+.auth-light-dialog .account-action-secondary { border-color: #d9e0eb; color: #42526c; background: #fff; }
+.auth-light-dialog .account-action-secondary:hover { border-color: #b9c8f7; background: #f3f6ff; }
+.auth-light-dialog .auth-action-note { border-color: #d8e3f7; color: #315d9f; background: #f0f5ff; }
+.auth-light-dialog .account-menu-message.is-error { border: 1px solid #f1d2ce; color: #a53d33; background: #fff5f3; }
+.auth-code-input { min-height: 52px !important; text-align: center; font-size: 22px !important; font-weight: 750; letter-spacing: .48em; padding-left: 1.15em !important; }
+.account-action-close { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border: 1px solid #dce3dd; border-radius: 5px; color: #53635a; background: #fff; cursor: pointer; }
+.account-action-close:hover { background: #f5f7f5; }
 .account-action-dialog > p { margin: 0 0 15px; font-size: 13px; line-height: 1.55; }
 .account-action-dialog .account-menu-message { margin-bottom: 12px; }
+.auth-action-note { margin: 0 0 12px; padding: 10px 11px; border: 1px solid #d8e3f7; border-radius: 5px; color: #315d9f; background: #f0f5ff; font-size: 12px; line-height: 1.5; }
+.account-action-dialog > .auth-action-note + .auth-action-note { margin-top: -5px; }
 .account-action-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; margin-top: 16px; }
 .account-action-form { display: grid; gap: 13px; }
 .account-action-form > p, .account-action-password-note p { margin: 0; font-size: 13px; line-height: 1.55; }
@@ -1764,6 +1787,24 @@ input[type='checkbox'] { width: 13px; height: 13px; margin: 0; accent-color: var
 :root[data-theme="dark"] .account-action-form select,
 :root[data-theme="dark"] .account-action-form textarea { border-color: #46505e; color: var(--ink); background: #1b222c; }
 :root[data-theme="dark"] .account-action-reason { background: #242b35; }
+:root[data-theme="dark"] .account-action-close { border-color: #46505e; color: var(--ink); background: #242b35; }
+:root[data-theme="dark"] .account-action-close:hover { background: #303946; }
+:root[data-theme="dark"] .auth-action-note { border-color: #354d78; color: #c4d6ff; background: #202c41; }
+:root[data-theme="dark"] .account-action-dialog.auth-light-dialog { color-scheme: light; border-color: #dce4f2; color: #53647a; background: #fff; }
+:root[data-theme="dark"] .account-action-dialog.auth-light-dialog > header h2 { color: #0a194e; }
+:root[data-theme="dark"] .account-action-dialog.auth-light-dialog > p { color: #64738a; }
+:root[data-theme="dark"] .auth-light-dialog .auth-dialog-heading small { color: #8491a4; }
+:root[data-theme="dark"] .auth-light-dialog .auth-dialog-icon { border-color: #dce5fb; color: #315bd5; background: #f1f5ff; }
+:root[data-theme="dark"] .auth-light-dialog .auth-dialog-icon.is-success { border-color: #d3eadb; color: #287348; background: #eff8f1; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-form label { color: #465777; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-form input { border-color: #dce4f2; color: #34445f; background: #fff; color-scheme: light; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-form input:focus { border-color: #7898ed; box-shadow: 0 0 0 3px rgba(49, 91, 213, .12); }
+:root[data-theme="dark"] .auth-light-dialog .account-action-secondary { border-color: #d9e0eb; color: #42526c; background: #fff; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-secondary:hover { border-color: #b9c8f7; background: #f3f6ff; }
+:root[data-theme="dark"] .auth-light-dialog .auth-action-note { border-color: #d8e3f7; color: #315d9f; background: #f0f5ff; }
+:root[data-theme="dark"] .auth-light-dialog .account-menu-message.is-error { border-color: #f1d2ce; color: #a53d33; background: #fff5f3; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-close { border-color: #dce3dd; color: #53635a; background: #fff; }
+:root[data-theme="dark"] .auth-light-dialog .account-action-close:hover { background: #f5f7f5; }
 @media (max-width: 760px) {
   .landing-auth-backdrop { padding: 8px; }
   .landing-auth-dialog { max-height: 96vh; }
@@ -2671,12 +2712,12 @@ input[type='checkbox'] { width: 13px; height: 13px; margin: 0; accent-color: var
 @media (max-width: 600px) {
   .account-menu-drawer { width: 100%; }
 }
-:root[data-theme="dark"] body :where(p, small, label, span, li, td, th, time, summary, dt, dd, [class*="-label"], [class*="-date"], [class*="-meta"], [class*="-caption"], [class*="-description"], [class*="-summary"], [class*="-detail"], [class*="-note"], [class*="-hint"], [class*="-count"], [class*="-copy"], [class*="-info"]):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *):not(.community-calendar-day.is-selected > span) { color: #c0cad8 !important; }
-:root[data-theme="dark"] body :where(h1, h2, h3, h4, h5, h6, strong, b):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #e7edf5 !important; }
-:root[data-theme="dark"] body :where(a:not([class*="primary"]), .subtle-link, .text-button, .nav-item, .account-menu-row, .account-menu-subrows button, button.button-quiet, button.button-outline):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #a9c5ff !important; }
-:root[data-theme="dark"] body button:not([class*="primary"]):not([class*="danger"]):not([class*="delete"]):not([class*="status"]):not(.community-calendar-day.is-selected):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #c0cad8; }
-:root[data-theme="dark"] body :where(input, select, textarea):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *) { color: #e7edf5; }
-:root[data-theme="dark"] body :where(input, textarea):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *)::placeholder { color: #9aa8bb; opacity: 1; }
+:root[data-theme="dark"] body :where(p, small, label, span, li, td, th, time, summary, dt, dd, [class*="-label"], [class*="-date"], [class*="-meta"], [class*="-caption"], [class*="-description"], [class*="-summary"], [class*="-detail"], [class*="-note"], [class*="-hint"], [class*="-count"], [class*="-copy"], [class*="-info"]):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *):not(.community-calendar-day.is-selected > span) { color: #c0cad8 !important; }
+:root[data-theme="dark"] body :where(h1, h2, h3, h4, h5, h6, strong, b):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #e7edf5 !important; }
+:root[data-theme="dark"] body :where(a:not([class*="primary"]), .subtle-link, .text-button, .nav-item, .account-menu-row, .account-menu-subrows button, button.button-quiet, button.button-outline):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #a9c5ff !important; }
+:root[data-theme="dark"] body button:not([class*="primary"]):not([class*="danger"]):not([class*="delete"]):not([class*="status"]):not(.community-calendar-day.is-selected):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *):not(.document-print-area *):not(.analytics-print-area *):not(.report-print-area *) { color: #c0cad8; }
+:root[data-theme="dark"] body :where(input, select, textarea):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *) { color: #e7edf5; }
+:root[data-theme="dark"] body :where(input, textarea):not(.landing-page *):not(.landing-auth-dialog *):not(.landing-legal-modal *):not(.auth-light-dialog *)::placeholder { color: #9aa8bb; opacity: 1; }
 :root[data-theme="dark"] .resident-bottom-nav-item.is-active { color: #202630 !important; }
 :root[data-theme="dark"] .resident-bottom-nav-item.is-active .resident-bottom-nav-icon { color: #202630 !important; }
 :root[data-theme="dark"] .resident-bottom-nav-item.is-active .resident-bottom-nav-icon svg { color: #202630 !important; }

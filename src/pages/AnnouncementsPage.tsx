@@ -232,18 +232,26 @@ export default function AnnouncementsPage({ role, language, currentUserId }: Pro
       const { email_delivery: delivery } = response.data
       const deliverySummary = delivery.failed > 0
         ? (delivery.configured
-          ? (isTagalog ? `${delivery.sent} email ang naipadala; ${delivery.failed} ang pumalya.` : `${delivery.sent} emails sent; ${delivery.failed} failed.`)
-          : (isTagalog ? `${delivery.failed} email ang hindi naipadala dahil hindi naka-configure ang mailer.` : `${delivery.failed} emails were not sent because the mailer is not configured.`))
-        : (isTagalog
-          ? `${delivery.sent} email ang naipadala; ${delivery.skipped} recipient ang hindi kwalipikadong makatanggap ng email.`
-          : `${delivery.sent} emails sent; ${delivery.skipped} recipients were not eligible for email.`)
+         ? (isTagalog
+           ? `Naipadala ang ${delivery.sent} email; ${delivery.failed} email ang pumalya.`
+           : `${delivery.sent} email${delivery.sent === 1 ? '' : 's'} sent successfully; ${delivery.failed} email${delivery.failed === 1 ? '' : 's'} failed to send.`)
+         : (isTagalog
+           ? `Hindi naipadala ang ${delivery.failed} email dahil hindi naka-configure ang mailer.`
+           : `${delivery.failed} email${delivery.failed === 1 ? '' : 's'} could not be sent because email delivery is not configured.`))
+        : (delivery.skipped > 0
+         ? (isTagalog
+           ? `Naipadala ang ${delivery.sent} email; ${delivery.skipped} recipient ang hindi kwalipikadong makatanggap ng email.`
+           : `${delivery.sent} email${delivery.sent === 1 ? '' : 's'} sent successfully; ${delivery.skipped} recipient${delivery.skipped === 1 ? '' : 's'} ${delivery.skipped === 1 ? 'was' : 'were'} not eligible for email.`)
+         : (isTagalog
+           ? `Naipadala ang ${delivery.sent} email.`
+           : `${delivery.sent} email${delivery.sent === 1 ? ' was' : 's were'} sent successfully.`))
       const auditWarning = isTagalog
         ? ' Hindi na-save ang activity log.'
         : ' The activity log could not be saved.'
       setSuccessMessage(
         (isTagalog
-          ? `Naipublish para sa ${response.data.recipient_count} na recipient. ${deliverySummary}`
-          : `Published for ${response.data.recipient_count} recipient${response.data.recipient_count === 1 ? '' : 's'}. ${deliverySummary}`)
+         ? `Matagumpay na naipublish ang announcement para sa ${response.data.recipient_count} recipient. ${deliverySummary}`
+         : `Announcement published successfully for ${response.data.recipient_count} recipient${response.data.recipient_count === 1 ? '' : 's'}. ${deliverySummary}`)
         + (response.data.audit_warning ? auditWarning : '')
       )
       await loadAnnouncements()

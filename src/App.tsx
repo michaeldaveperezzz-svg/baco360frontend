@@ -405,10 +405,43 @@ function AppContent() {
     }
   }
   async function handle2FAVerify(code: string, email: string) { await verify2FA(code, email) }
-  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<{ email: string; welcomeEmailSent: boolean }> {
+  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<{ email: string; verificationEmailSent: boolean }> {
     const response = await authService.register({ name, email, phone, password, password_confirmation: passwordConfirmation })
     if (!response.success || !response.data) throw new Error(response.message || 'Registration failed')
-    return { email: response.data.email, welcomeEmailSent: response.data.welcome_email_sent }
+    return { email: response.data.email, verificationEmailSent: response.data.verification_email_sent }
+  }
+  async function resendEmailVerification(email: string) {
+    const response = await authService.resendEmailVerification(email)
+    if (!response.success) throw new Error(response.message || 'Could not request an email verification code.')
+  }
+  async function verifyEmail(email: string, code: string) {
+    const response = await authService.verifyEmail(email, code)
+    const result = response.data
+    if (!response.success || !result?.email_verified || !result.user || !result.tokens?.access_token || !result.tokens.refresh_token) {
+      throw new Error(response.message || 'Email verification failed.')
+    }
+    authenticateWithTokens(result.user, result.tokens.access_token, result.tokens.refresh_token)
+    setView('resident-dashboard')
+    return { welcomeEmailSent: result.welcome_email_sent }
+  }
+  async function requestPasswordReset(email: string) {
+    const response = await authService.requestPasswordReset(email)
+    if (!response.success) throw new Error(response.message || 'Could not request a password reset.')
+  }
+  async function verifyPasswordResetCode(email: string, code: string) {
+    const response = await authService.verifyPasswordResetCode(email, code)
+    if (!response.success || !response.data?.code_valid) {
+      throw new Error(response.message || 'The reset code is invalid or expired.')
+    }
+  }
+  async function resetPassword(email: string, code: string, password: string, passwordConfirmation: string) {
+    const response = await authService.resetPassword({
+      email,
+      code,
+      password,
+      password_confirmation: passwordConfirmation,
+    })
+    if (!response.success) throw new Error(response.message || 'Password reset failed.')
   }
   async function handleGoogleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') {
     const response = await authService.googleSignIn(idToken, intent)
@@ -510,7 +543,16 @@ function AppContent() {
   async function handleLogout() { await logout(); setView('landing'); setIsEmergencyContactsModalOpen(false); setReports([]); setCategories([]); setUsers([]) }
 
   if (isAuthLoading) return <div className="auth-loading" role="status">Restoring your session...</div>
-  if (view === 'landing') return <LandingPage onLogin={handleLogin} onRegister={registerUser} onGoogleSignIn={handleGoogleSignIn} />
+  if (view === 'landing') return <LandingPage
+    onLogin={handleLogin}
+    onRegister={registerUser}
+    onResendEmailVerification={resendEmailVerification}
+    onVerifyEmail={verifyEmail}
+    onRequestPasswordReset={requestPasswordReset}
+    onVerifyPasswordResetCode={verifyPasswordResetCode}
+    onResetPassword={resetPassword}
+    onGoogleSignIn={handleGoogleSignIn}
+  />
   if (view === '2fa') return <><div className="auth-wrapper"><LanguageSelect language={language} onLanguageChange={changeLanguage} /><TwoFactorAuthPage email={pendingAuthEmail} onVerify={handle2FAVerify} onBack={() => setView('landing')} /></div></>
   return <>
     <div className={`app-shell${role === 'resident' ? ' app-shell--resident' : ''}`}>

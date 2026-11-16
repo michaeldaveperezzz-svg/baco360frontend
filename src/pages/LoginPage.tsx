@@ -1,16 +1,22 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowRight, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck, X } from 'lucide-react'
 import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
 
 interface Props { 
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
   onRegister: () => void 
+  onResendEmailVerification: (email: string) => Promise<void>
+  onRequestPasswordReset: (email: string) => Promise<void>
+  onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
+  onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
   modal: true
 }
 
 const reactivationRequiredMessage = 'This account is deactivated. Confirm reactivation to continue.'
+const emailVerificationRequiredMessage = 'Please verify your email address before signing in.'
 
 function getErrorMessage(reason: unknown): string | null {
   if (reason instanceof Error) return reason.message
@@ -20,7 +26,7 @@ function getErrorMessage(reason: unknown): string | null {
   return null
 }
 
-export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }: Props) {
+export default function LoginPage({ onLogin, onRegister, onResendEmailVerification, onRequestPasswordReset, onVerifyPasswordResetCode, onResetPassword, onGoogleSignIn, modal }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [credentialsEditable, setCredentialsEditable] = useState(false)
@@ -28,6 +34,21 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false)
+  const [verificationRequestNotice, setVerificationRequestNotice] = useState('')
+  const [verificationRequestError, setVerificationRequestError] = useState('')
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [resetCodeModalOpen, setResetCodeModalOpen] = useState(false)
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false)
+  const [passwordResetCompleteOpen, setPasswordResetCompleteOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotCode, setForgotCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [forgotNotice, setForgotNotice] = useState('')
+  const [forgotError, setForgotError] = useState('')
+  const [resetCodeFeedback, setResetCodeFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
+  const [isForgotLoading, setIsForgotLoading] = useState(false)
   const [accountReactivation, setAccountReactivation] = useState(false)
   const [pendingGoogleToken, setPendingGoogleToken] = useState<string | null>(null)
   const [reactivationError, setReactivationError] = useState<string | null>(null)
@@ -35,6 +56,9 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
   async function submit(event: FormEvent<HTMLFormElement>) { 
     event.preventDefault()
     setError(null)
+    setNeedsEmailVerification(false)
+    setVerificationRequestNotice('')
+    setVerificationRequestError('')
     setIsLoading(true)
     try {
       await onLogin(email, password, remember)
@@ -45,6 +69,7 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
         setReactivationError(null)
       } else {
         setError(message || 'Login failed. Please check your credentials.')
+        setNeedsEmailVerification(message === emailVerificationRequiredMessage)
       }
     } finally {
       setIsLoading(false)
@@ -90,6 +115,113 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
     setPassword('')
   }
 
+  function openForgotPassword() {
+    setForgotEmail(email)
+    setForgotCode('')
+    setNewPassword('')
+    setConfirmNewPassword('')
+    setForgotNotice('')
+    setForgotError('')
+    setResetCodeFeedback(null)
+    setResetCodeModalOpen(false)
+    setChangePasswordModalOpen(false)
+    setPasswordResetCompleteOpen(false)
+    setForgotPasswordOpen(true)
+  }
+
+  function closeForgotPassword() {
+    setForgotPasswordOpen(false)
+    setResetCodeModalOpen(false)
+    setChangePasswordModalOpen(false)
+    setPasswordResetCompleteOpen(false)
+    setForgotNotice('')
+    setForgotError('')
+    setResetCodeFeedback(null)
+  }
+
+  async function requestPasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setForgotError('')
+    setIsForgotLoading(true)
+    try {
+      await onRequestPasswordReset(forgotEmail)
+      setForgotPasswordOpen(false)
+      setResetCodeModalOpen(true)
+      setForgotNotice('If an account exists for that email, a reset code will be sent. Check your inbox and spam folder.')
+    } catch (reason: unknown) {
+      setForgotError(getErrorMessage(reason) || 'Could not request a password reset.')
+    } finally {
+      setIsForgotLoading(false)
+    }
+  }
+
+  async function resendPasswordResetCode() {
+    setForgotError('')
+    setIsForgotLoading(true)
+    try {
+      await onRequestPasswordReset(forgotEmail)
+      setForgotCode('')
+      setForgotNotice('If an account exists for that email, a reset code will be sent.')
+    } catch (reason: unknown) {
+      setForgotError(getErrorMessage(reason) || 'Could not request a password reset.')
+    } finally {
+      setIsForgotLoading(false)
+    }
+  }
+
+  async function verifyResetCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setForgotError('')
+    setIsForgotLoading(true)
+    try {
+      await onVerifyPasswordResetCode(forgotEmail, forgotCode)
+      setResetCodeModalOpen(false)
+      setResetCodeFeedback({ type: 'success', message: 'Your reset code is verified. Continue to create a new password.' })
+      setForgotNotice('')
+    } catch (reason: unknown) {
+      setResetCodeFeedback({
+        type: 'error',
+        message: getErrorMessage(reason) || 'The reset code is invalid or expired. Request a new code and try again.',
+      })
+    } finally {
+      setIsForgotLoading(false)
+    }
+  }
+
+  async function resetPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (newPassword !== confirmNewPassword) {
+      setForgotError('The passwords do not match.')
+      return
+    }
+    setForgotError('')
+    setIsForgotLoading(true)
+    try {
+      await onResetPassword(forgotEmail, forgotCode, newPassword, confirmNewPassword)
+      setChangePasswordModalOpen(false)
+      setPasswordResetCompleteOpen(true)
+      setForgotNotice('Password reset successfully. You can now sign in.')
+    } catch (reason: unknown) {
+      setForgotError(getErrorMessage(reason) || 'Password reset failed. Please try again.')
+    } finally {
+      setIsForgotLoading(false)
+    }
+  }
+
+  async function resendVerificationCode() {
+    setVerificationRequestNotice('')
+    setVerificationRequestError('')
+    setIsLoading(true)
+    try {
+      await onResendEmailVerification(email)
+      setVerificationRequestNotice('If this address belongs to an unverified resident account, a code will be sent.')
+    } catch (reason: unknown) {
+      setVerificationRequestError(getErrorMessage(reason) || 'Could not request a verification code.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className={`auth-layout login-layout${modal ? ' auth-modal-form' : ''}`}>
       <aside className="auth-story">
@@ -112,8 +244,13 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
           {error && (
             <div className="auth-feedback auth-feedback-error">
               {error}
+              {needsEmailVerification && <button className="subtle-link" type="button" onClick={() => void resendVerificationCode()} disabled={isLoading}>
+                {isLoading ? 'Requesting code...' : 'Resend verification code'}
+              </button>}
             </div>
           )}
+          {verificationRequestNotice && <div className="auth-action-note" role="status">{verificationRequestNotice}</div>}
+          {verificationRequestError && <p className="account-menu-message is-error" role="alert">{verificationRequestError}</p>}
           <form onSubmit={submit} autoComplete="new-password">
             <label className="field-label">
               Email address
@@ -153,6 +290,7 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
               <label>
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={isLoading} /> Remember me
               </label>
+              <button className="subtle-link" type="button" onClick={openForgotPassword} disabled={isLoading}>Forgot password?</button>
             </div>
             <button className="button button-primary auth-submit" type="submit" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Continue'} <ArrowRight size={16} />
@@ -165,7 +303,7 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
         </div>
       </main>
       {accountReactivation && <div className="account-action-backdrop">
-        <section className="account-action-dialog" role="dialog" aria-modal="true" aria-labelledby="reactivate-account-title">
+        <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="reactivate-account-title">
           <header><h2 id="reactivate-account-title">Reactivate account?</h2></header>
           <p>{pendingGoogleToken
             ? 'Your Google account is verified. Confirm to restore access to your Baco360 account.'
@@ -179,6 +317,140 @@ export default function LoginPage({ onLogin, onRegister, onGoogleSignIn, modal }
           </div>
         </section>
       </div>}
+      {(forgotPasswordOpen || resetCodeModalOpen || resetCodeFeedback || changePasswordModalOpen || passwordResetCompleteOpen) && createPortal(<div className="account-action-backdrop" role="presentation" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) closeForgotPassword()
+      }}>
+        {forgotPasswordOpen && <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+          <header>
+            <div className="auth-dialog-heading">
+              <span className="auth-dialog-icon"><Mail size={18} /></span>
+              <div><h2 id="forgot-password-title">Forgot password?</h2></div>
+            </div>
+            <button className="account-action-close" type="button" aria-label="Close dialog" onClick={closeForgotPassword}><X size={18} /></button>
+          </header>
+          <p>Enter the email address linked to your account. We’ll send a reset code if the account is eligible.</p>
+          {forgotError && <p className="account-menu-message is-error" role="alert">{forgotError}</p>}
+          <form className="account-action-form" onSubmit={requestPasswordReset}>
+            <label>
+              Email address
+              <input type="email" autoComplete="email" required value={forgotEmail} onChange={(event) => setForgotEmail(event.target.value)} disabled={isForgotLoading} />
+            </label>
+            <div className="account-action-buttons">
+              <button className="account-action-secondary" type="button" onClick={closeForgotPassword} disabled={isForgotLoading}>Cancel</button>
+              <button className="account-action-primary" type="submit" disabled={isForgotLoading}>{isForgotLoading ? 'Requesting code...' : 'Send reset code'}</button>
+            </div>
+          </form>
+        </section>}
+        {resetCodeModalOpen && !resetCodeFeedback && <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-code-title">
+          <header>
+            <div className="auth-dialog-heading">
+              <span className="auth-dialog-icon"><KeyRound size={18} /></span>
+              <div><h2 id="reset-code-title">Enter reset code</h2></div>
+            </div>
+            <button className="account-action-close" type="button" aria-label="Close dialog" onClick={closeForgotPassword}><X size={18} /></button>
+          </header>
+          <p>Enter the 6-digit code sent to <strong>{forgotEmail}</strong>.</p>
+          {forgotNotice && <div className="auth-action-note" role="status">{forgotNotice}</div>}
+          {forgotError && <p className="account-menu-message is-error" role="alert">{forgotError}</p>}
+          <form className="account-action-form" onSubmit={verifyResetCode}>
+            <label>
+              Verification code
+              <input
+                className="auth-code-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={forgotCode}
+                onChange={(event) => setForgotCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                disabled={isForgotLoading}
+              />
+            </label>
+            <button className="subtle-link" type="button" onClick={() => void resendPasswordResetCode()} disabled={isForgotLoading}>
+              {isForgotLoading ? 'Requesting code...' : 'Resend reset code'}
+            </button>
+            <div className="account-action-buttons">
+              <button className="account-action-secondary" type="button" onClick={() => {
+                setResetCodeModalOpen(false)
+                setForgotPasswordOpen(true)
+                setForgotCode('')
+                setForgotNotice('')
+                setForgotError('')
+              }} disabled={isForgotLoading}>Back</button>
+              <button className="account-action-primary" type="submit" disabled={isForgotLoading || forgotCode.length !== 6}>{isForgotLoading ? 'Checking code...' : 'Continue'}</button>
+            </div>
+          </form>
+        </section>}
+        {resetCodeFeedback && <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-code-feedback-title">
+          <header>
+            <div className="auth-dialog-heading">
+              <span className={`auth-dialog-icon${resetCodeFeedback.type === 'success' ? ' is-success' : ' is-error'}`}>
+                {resetCodeFeedback.type === 'success' ? <ShieldCheck size={18} /> : <KeyRound size={18} />}
+              </span>
+              <div><h2 id="reset-code-feedback-title">{resetCodeFeedback.type === 'success' ? 'Code verified' : 'Code not accepted'}</h2></div>
+            </div>
+            <button className="account-action-close" type="button" aria-label="Close dialog" onClick={closeForgotPassword}><X size={18} /></button>
+          </header>
+          <p role={resetCodeFeedback.type === 'error' ? 'alert' : 'status'}>{resetCodeFeedback.message}</p>
+          <div className="account-action-buttons">
+            {resetCodeFeedback.type === 'success'
+              ? <button className="account-action-primary" type="button" onClick={() => {
+                setResetCodeFeedback(null)
+                setChangePasswordModalOpen(true)
+              }}>Continue</button>
+              : <button className="account-action-secondary" type="button" onClick={() => setResetCodeFeedback(null)}>Try again</button>}
+          </div>
+        </section>}
+        {changePasswordModalOpen && <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+          <header>
+            <div className="auth-dialog-heading">
+              <span className="auth-dialog-icon"><LockKeyhole size={18} /></span>
+              <div><h2 id="change-password-title">Create a new password</h2></div>
+            </div>
+            <button className="account-action-close" type="button" aria-label="Close dialog" onClick={closeForgotPassword}><X size={18} /></button>
+          </header>
+          <p>Choose a new password for <strong>{forgotEmail}</strong>.</p>
+          {forgotError && <p className="account-menu-message is-error" role="alert">{forgotError}</p>}
+          <form className="account-action-form" onSubmit={resetPassword}>
+            <label>
+              New password
+              <input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={isForgotLoading} />
+            </label>
+            <label>
+              Confirm new password
+              <input type="password" autoComplete="new-password" minLength={8} required value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} disabled={isForgotLoading} />
+            </label>
+            <div className="account-action-buttons">
+              <button className="account-action-secondary" type="button" onClick={() => {
+                setChangePasswordModalOpen(false)
+                setResetCodeModalOpen(true)
+                setForgotError('')
+              }} disabled={isForgotLoading}>Back to code</button>
+              <button className="account-action-primary" type="submit" disabled={isForgotLoading}>{isForgotLoading ? 'Updating password...' : 'Change password'}</button>
+            </div>
+          </form>
+        </section>}
+        {passwordResetCompleteOpen && <section className="account-action-dialog auth-light-dialog" role="dialog" aria-modal="true" aria-labelledby="password-reset-complete-title">
+          <header>
+            <div className="auth-dialog-heading">
+              <span className="auth-dialog-icon is-success"><ShieldCheck size={18} /></span>
+              <div><h2 id="password-reset-complete-title">Password changed</h2><small>All set</small></div>
+            </div>
+            <button className="account-action-close" type="button" aria-label="Close dialog" onClick={closeForgotPassword}><X size={18} /></button>
+          </header>
+          <p role="status">{forgotNotice}</p>
+          <div className="account-action-buttons">
+            <button className="account-action-primary" type="button" onClick={() => {
+              setEmail(forgotEmail)
+              setPassword('')
+              setCredentialsEditable(true)
+              closeForgotPassword()
+            }}>Continue to sign in</button>
+          </div>
+        </section>}
+      </div>, document.body)}
     </div>
   )
 }

@@ -14,6 +14,11 @@ export const API_ENDPOINTS = {
   // Authentication
   LOGIN: '/auth/login',
   REGISTER: '/auth/register',
+  VERIFY_EMAIL: '/auth/verify-email',
+  RESEND_EMAIL_VERIFICATION: '/auth/resend-verification',
+  REQUEST_PASSWORD_RESET: '/auth/request-password-reset',
+  VERIFY_PASSWORD_RESET_CODE: '/auth/verify-password-reset-code',
+  RESET_PASSWORD: '/auth/reset-password',
   GOOGLE_SIGN_IN: '/auth/google',
   LOGOUT: '/auth/logout',
   VERIFY_2FA: '/auth/verify-2fa',

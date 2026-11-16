@@ -7,7 +7,12 @@ import { websiteContentImageUrl, websiteContentService, type WebsiteContentData 
 
 interface Props {
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
-  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; welcomeEmailSent: boolean }>
+  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean }>
+  onResendEmailVerification: (email: string) => Promise<void>
+  onVerifyEmail: (email: string, code: string) => Promise<{ welcomeEmailSent: boolean }>
+  onRequestPasswordReset: (email: string) => Promise<void>
+  onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
+  onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
 }
 
@@ -34,7 +39,7 @@ function LandingBrand({ footer = false, siteName, logoPath }: { footer?: boolean
   </div>
 }
 
-export default function LandingPage({ onLogin, onRegister, onGoogleSignIn }: Props) {
+export default function LandingPage({ onLogin, onRegister, onResendEmailVerification, onVerifyEmail, onRequestPasswordReset, onVerifyPasswordResetCode, onResetPassword, onGoogleSignIn }: Props) {
   const [authModal, setAuthModal] = useState<'sign-in' | 'sign-up' | null>(null)
   const [legalModal, setLegalModal] = useState<'terms' | 'privacy' | null>(null)
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false)
@@ -273,8 +278,8 @@ export default function LandingPage({ onLogin, onRegister, onGoogleSignIn }: Pro
         <button className="landing-auth-close" type="button" aria-label="Close dialog" onClick={closeAuthModal}><X size={19} /></button>
         <div className="landing-auth-dialog-scroll">
           {authModal === 'sign-in'
-            ? <LoginPage modal onLogin={onLogin} onRegister={() => openAuthModal('sign-up')} onGoogleSignIn={onGoogleSignIn} />
-            : <RegisterPage modal onRegister={onRegister} onBack={() => openAuthModal('sign-in')} onOpenLegal={setLegalModal} onGoogleSignIn={onGoogleSignIn} onRequireGoogleSignupConsent={requestGoogleSignupConsent} acceptedTerms={signupTermsAccepted} onAcceptedTermsChange={setSignupTermsAccepted} />}
+            ? <LoginPage modal onLogin={onLogin} onRegister={() => openAuthModal('sign-up')} onResendEmailVerification={onResendEmailVerification} onRequestPasswordReset={onRequestPasswordReset} onVerifyPasswordResetCode={onVerifyPasswordResetCode} onResetPassword={onResetPassword} onGoogleSignIn={onGoogleSignIn} />
+            : <RegisterPage modal onRegister={onRegister} onResendEmailVerification={onResendEmailVerification} onVerifyEmail={onVerifyEmail} onBack={() => openAuthModal('sign-in')} onOpenLegal={setLegalModal} onGoogleSignIn={onGoogleSignIn} onRequireGoogleSignupConsent={requestGoogleSignupConsent} acceptedTerms={signupTermsAccepted} onAcceptedTermsChange={setSignupTermsAccepted} />}
         </div>
       </section>
       {legalModal && <div className="landing-legal-backdrop" role="presentation" onMouseDown={(event) => {

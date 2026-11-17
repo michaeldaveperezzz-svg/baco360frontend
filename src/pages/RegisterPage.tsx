@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, ShieldCheck, X } from 'lucide-react'
 import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import { useCodeCountdown, formatCodeCountdown } from '../hooks/useCodeCountdown'
+import type { CodeTiming } from '../services/auth.service'
 
 interface Props { 
-  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean }>
-  onResendEmailVerification: (email: string) => Promise<void>
+  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean } & CodeTiming>
+  onResendEmailVerification: (email: string) => Promise<CodeTiming>
   onVerifyEmail: (email: string, code: string) => Promise<{ welcomeEmailSent: boolean }>
   onBack: () => void 
   onOpenLegal: (document: 'terms' | 'privacy') => void
@@ -15,6 +17,22 @@ interface Props {
   acceptedTerms: boolean
   onAcceptedTermsChange: (accepted: boolean) => void
   modal: true
+}
+
+function getErrorCode(reason: unknown): string | null {
+  if (typeof reason === 'object' && reason !== null && 'code' in reason && typeof reason.code === 'string') {
+    return reason.code
+  }
+  return null
+}
+
+function getErrorMessage(reason: unknown): string | null {
+  if (reason instanceof Error) return reason.message
+  if (typeof reason === 'object' && reason !== null && 'message' in reason
+    && typeof reason.message === 'string' && reason.message.trim()) {
+    return reason.message
+  }
+  return null
 }
 
 export default function RegisterPage(props: Props) {
@@ -33,6 +51,7 @@ export default function RegisterPage(props: Props) {
   const [isRegistering, setIsRegistering] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isResending, setIsResending] = useState(false)
+  const codeCountdown = useCodeCountdown()
   
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -53,9 +72,29 @@ export default function RegisterPage(props: Props) {
       setVerificationNotice(result.verificationEmailSent
         ? ''
         : 'The account is pending verification, but the email could not be sent. Please request a new code.')
+      codeCountdown.start(result)
       setVerificationModalOpen(true)
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : 'Registration failed. Please check your information.')
+      if (getErrorCode(reason) === 'EMAIL_VERIFICATION_PENDING') {
+        const pendingEmail = email.trim().toLowerCase()
+        setEmail(pendingEmail)
+        setVerificationCode('')
+        setVerificationError('')
+        setVerificationComplete(false)
+        setVerificationNotice('This account is still waiting for verification. Check your inbox for the code, or request another one below.')
+        setVerificationModalOpen(true)
+        setIsResending(true)
+        try {
+          const timing = await onResendEmailVerification(pendingEmail)
+          codeCountdown.start(timing)
+        } catch (resendError: unknown) {
+          setVerificationError(getErrorMessage(resendError) || 'Could not request a verification code. Please try again.')
+        } finally {
+          setIsResending(false)
+        }
+      } else {
+        setError(getErrorMessage(reason) || 'Registration failed. Please check your information.')
+      }
     } finally {
       setIsRegistering(false)
     }
@@ -72,7 +111,7 @@ export default function RegisterPage(props: Props) {
         ? 'Your account is ready. A welcome email has also been sent.'
         : 'Your account is ready, but the welcome email could not be sent.')
     } catch (reason: unknown) {
-      setVerificationError(reason instanceof Error ? reason.message : 'Email verification failed. Please try again.')
+      setVerificationError(getErrorMessage(reason) || 'Email verification failed. Please try again.')
     } finally {
       setIsVerifying(false)
     }
@@ -82,11 +121,12 @@ export default function RegisterPage(props: Props) {
     setVerificationError('')
     setIsResending(true)
     try {
-      await onResendEmailVerification(email)
+      const timing = await onResendEmailVerification(email)
+      codeCountdown.start(timing)
       setVerificationCode('')
       setVerificationNotice('If this address belongs to an unverified resident account, a code will be sent.')
     } catch (reason: unknown) {
-      setVerificationError(reason instanceof Error ? reason.message : 'Could not request a verification code.')
+      setVerificationError(getErrorMessage(reason) || 'Could not request a verification code.')
     } finally {
       setIsResending(false)
     }
@@ -200,8 +240,10 @@ export default function RegisterPage(props: Props) {
                   disabled={isVerifying}
                 />
               </label>
-              <button className="subtle-link" type="button" onClick={() => void resendVerificationCode()} disabled={isResending || isVerifying}>
-                {isResending ? 'Requesting a new code...' : 'Resend code'}
+              <button className="subtle-link" type="button" onClick={() => void resendVerificationCode()} disabled={isResending || isVerifying || (codeCountdown.resendInSeconds !== null && codeCountdown.resendInSeconds > 0)}>
+                {isResending ? 'Requesting a new code...' : codeCountdown.resendInSeconds
+                  ? `Resend code in ${formatCodeCountdown(codeCountdown.resendInSeconds)}`
+                  : 'Resend code'}
               </button>
               <div className="account-action-buttons">
                 <button className="account-action-secondary" type="button" onClick={closeVerificationModal} disabled={isVerifying}>Back to sign up</button>

@@ -4,13 +4,14 @@ import { ArrowDown, ArrowRight, CircleHelp, FilePlus2, MapPinned, MessageSquareT
 import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 import { websiteContentImageUrl, websiteContentService, type WebsiteContentData } from '../services/websiteContent.service'
+import type { CodeTiming } from '../services/auth.service'
 
 interface Props {
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
-  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean }>
-  onResendEmailVerification: (email: string) => Promise<void>
+  onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean } & CodeTiming>
+  onResendEmailVerification: (email: string) => Promise<CodeTiming>
   onVerifyEmail: (email: string, code: string) => Promise<{ welcomeEmailSent: boolean }>
-  onRequestPasswordReset: (email: string) => Promise<void>
+  onRequestPasswordReset: (email: string) => Promise<CodeTiming>
   onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
   onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>

@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom'
 import { ArrowRight, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck, X } from 'lucide-react'
 import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import { useCodeCountdown, formatCodeCountdown } from '../hooks/useCodeCountdown'
+import type { CodeTiming } from '../services/auth.service'
 
 interface Props { 
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
   onRegister: () => void 
-  onResendEmailVerification: (email: string) => Promise<void>
-  onRequestPasswordReset: (email: string) => Promise<void>
+  onResendEmailVerification: (email: string) => Promise<CodeTiming>
+  onRequestPasswordReset: (email: string) => Promise<CodeTiming>
   onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
   onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
   onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
@@ -52,6 +54,8 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
   const [accountReactivation, setAccountReactivation] = useState(false)
   const [pendingGoogleToken, setPendingGoogleToken] = useState<string | null>(null)
   const [reactivationError, setReactivationError] = useState<string | null>(null)
+  const codeCountdown = useCodeCountdown()
+  const verificationCountdown = useCodeCountdown()
   
   async function submit(event: FormEvent<HTMLFormElement>) { 
     event.preventDefault()
@@ -116,6 +120,7 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
   }
 
   function openForgotPassword() {
+    codeCountdown.reset()
     setForgotEmail(email)
     setForgotCode('')
     setNewPassword('')
@@ -130,6 +135,7 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
   }
 
   function closeForgotPassword() {
+    codeCountdown.reset()
     setForgotPasswordOpen(false)
     setResetCodeModalOpen(false)
     setChangePasswordModalOpen(false)
@@ -144,7 +150,8 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
     setForgotError('')
     setIsForgotLoading(true)
     try {
-      await onRequestPasswordReset(forgotEmail)
+      const timing = await onRequestPasswordReset(forgotEmail)
+      codeCountdown.start(timing)
       setForgotPasswordOpen(false)
       setResetCodeModalOpen(true)
       setForgotNotice('If an account exists for that email, a reset code will be sent. Check your inbox and spam folder.')
@@ -159,7 +166,8 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
     setForgotError('')
     setIsForgotLoading(true)
     try {
-      await onRequestPasswordReset(forgotEmail)
+      const timing = await onRequestPasswordReset(forgotEmail)
+      codeCountdown.start(timing)
       setForgotCode('')
       setForgotNotice('If an account exists for that email, a reset code will be sent.')
     } catch (reason: unknown) {
@@ -213,7 +221,8 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
     setVerificationRequestError('')
     setIsLoading(true)
     try {
-      await onResendEmailVerification(email)
+      const timing = await onResendEmailVerification(email)
+      verificationCountdown.start(timing)
       setVerificationRequestNotice('If this address belongs to an unverified resident account, a code will be sent.')
     } catch (reason: unknown) {
       setVerificationRequestError(getErrorMessage(reason) || 'Could not request a verification code.')
@@ -244,8 +253,10 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
           {error && (
             <div className="auth-feedback auth-feedback-error">
               {error}
-              {needsEmailVerification && <button className="subtle-link" type="button" onClick={() => void resendVerificationCode()} disabled={isLoading}>
-                {isLoading ? 'Requesting code...' : 'Resend verification code'}
+              {needsEmailVerification && <button className="subtle-link" type="button" onClick={() => void resendVerificationCode()} disabled={isLoading || (verificationCountdown.resendInSeconds !== null && verificationCountdown.resendInSeconds > 0)}>
+                {isLoading ? 'Requesting code...' : verificationCountdown.resendInSeconds
+                  ? `Resend verification code in ${formatCodeCountdown(verificationCountdown.resendInSeconds)}`
+                  : 'Resend verification code'}
               </button>}
             </div>
           )}
@@ -368,8 +379,10 @@ export default function LoginPage({ onLogin, onRegister, onResendEmailVerificati
                 disabled={isForgotLoading}
               />
             </label>
-            <button className="subtle-link" type="button" onClick={() => void resendPasswordResetCode()} disabled={isForgotLoading}>
-              {isForgotLoading ? 'Requesting code...' : 'Resend reset code'}
+            <button className="subtle-link" type="button" onClick={() => void resendPasswordResetCode()} disabled={isForgotLoading || (codeCountdown.resendInSeconds !== null && codeCountdown.resendInSeconds > 0)}>
+              {isForgotLoading ? 'Requesting code...' : codeCountdown.resendInSeconds
+                ? `Resend reset code in ${formatCodeCountdown(codeCountdown.resendInSeconds)}`
+                : 'Resend reset code'}
             </button>
             <div className="account-action-buttons">
               <button className="account-action-secondary" type="button" onClick={() => {

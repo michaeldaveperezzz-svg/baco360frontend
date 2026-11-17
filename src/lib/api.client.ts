@@ -18,6 +18,8 @@ export interface ApiError {
   message: string
   errors?: Record<string, string[]>
   status?: number
+  code?: string
+  data?: unknown
 }
 
 function normalizeApiResponse<T>(payload: any): ApiResponse<T> {
@@ -245,6 +247,8 @@ export function handleApiError(error: unknown): ApiError {
         return {
           message: payload?.error ?? payload?.message ?? responseMessage,
           status: axiosError.response.status,
+          code: typeof payload?.code === 'string' ? payload.code : undefined,
+          data: payload?.data,
         }
       }
 
@@ -252,6 +256,8 @@ export function handleApiError(error: unknown): ApiError {
         message: responseMessage || 'An error occurred',
         errors: normalized.errors,
         status: axiosError.response.status,
+        code: typeof payload?.code === 'string' ? payload.code : undefined,
+        data: payload?.data,
       }
     }
 

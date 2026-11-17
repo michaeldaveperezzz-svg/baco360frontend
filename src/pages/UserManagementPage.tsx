@@ -12,14 +12,28 @@ interface Props {
   initialQuery?: string
   onCreate: (data: CreateUserData) => Promise<void>
   onUpdate: (userId: number, data: UpdateUserData) => Promise<void>
-  onDelete: (userId: number) => Promise<void>
+  onDelete: (userId: number, deleteLinkedReports?: boolean) => Promise<void>
   onToggleActive: (userId: number) => Promise<void>
   onRoleChange: (userId: number, role: UserRole) => Promise<void>
 }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error
+    && typeof error.message === 'string' && error.message.trim()) {
+    return error.message
+  }
   return 'The user could not be saved. Please try again.'
+}
+
+function getExistingReportCount(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)
+    || error.code !== 'USER_HAS_REPORTS' || !('data' in error)
+    || typeof error.data !== 'object' || error.data === null || !('report_count' in error.data)) {
+    return null
+  }
+  const count = error.data.report_count
+  return typeof count === 'number' && Number.isInteger(count) && count > 0 ? count : null
 }
 
 export default function UserManagementPage({ users, currentUserId, initialQuery = '', onCreate, onUpdate, onDelete, onToggleActive, onRoleChange }: Props) {
@@ -28,6 +42,8 @@ export default function UserManagementPage({ users, currentUserId, initialQuery 
   const [editing, setEditing] = useState<User | null>(null)
   const [adding, setAdding] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null)
+  const [reportDeleteCandidate, setReportDeleteCandidate] = useState<{ user: User; reportCount: number } | null>(null)
+  const [deleteResultMessage, setDeleteResultMessage] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -86,19 +102,42 @@ export default function UserManagementPage({ users, currentUserId, initialQuery 
   }
 
   async function remove(user: User) {
+    setDeleteResultMessage(null)
+    setReportDeleteCandidate(null)
     setDeleteCandidate(user)
   }
 
   async function confirmDelete() {
     if (!deleteCandidate || isDeleting) return
+    const candidate = deleteCandidate
     setError(null)
     setIsDeleting(true)
     try {
-      await onDelete(deleteCandidate.id)
+      await onDelete(candidate.id)
       setDeleteCandidate(null)
     } catch (deleteError) {
-      setError(getErrorMessage(deleteError))
       setDeleteCandidate(null)
+      const reportCount = getExistingReportCount(deleteError)
+      if (reportCount !== null) {
+        setReportDeleteCandidate({ user: candidate, reportCount })
+      } else {
+        setDeleteResultMessage(getErrorMessage(deleteError))
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  async function confirmDeleteWithReports() {
+    if (!reportDeleteCandidate || isDeleting) return
+    const candidate = reportDeleteCandidate.user
+    setIsDeleting(true)
+    try {
+      await onDelete(candidate.id, true)
+      setReportDeleteCandidate(null)
+    } catch (deleteError) {
+      setReportDeleteCandidate(null)
+      setDeleteResultMessage(getErrorMessage(deleteError))
     } finally {
       setIsDeleting(false)
     }
@@ -172,18 +211,43 @@ export default function UserManagementPage({ users, currentUserId, initialQuery 
       </div>
       <div className="table-footer"><span>Showing <strong>{filtered.length}</strong> of {visibleUsers.length} accounts</span><span>Roles and access changes are written to the audit log.</span></div>
     </section>
-    <div className="management-note"><UserRound size={17} /><p><strong>Role changes take effect immediately.</strong> Deactivated users cannot sign in, but existing reports and audit records remain available. Accounts linked to existing records must be deactivated rather than deleted.</p></div>
+    <div className="management-note"><UserRound size={17} /><p><strong>Role changes take effect immediately.</strong> Deactivated users cannot sign in, but existing reports and audit records remain available. Some linked records, such as report assignments or authored announcements, may still prevent deletion.</p></div>
     {deleteCandidate && createPortal(<div className="modal-backdrop delete-confirm-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !isDeleting) setDeleteCandidate(null)
     }}>
       <section className="delete-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-user-title" aria-describedby="delete-user-description">
         <span className="delete-confirm-icon"><Trash2 size={22} /></span>
         <h2 id="delete-user-title">Delete this account?</h2>
-        <p id="delete-user-description">Delete {deleteCandidate.name}'s account? Accounts with reports or comments must be deactivated instead.</p>
+        <p id="delete-user-description">Delete {deleteCandidate.name}'s account? The system will check for linked reports and records first.</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="delete-confirm-actions">
           <button type="button" className="button button-quiet" onClick={() => setDeleteCandidate(null)} disabled={isDeleting}>Cancel</button>
           <button type="button" className="button button-delete" onClick={() => void confirmDelete()} disabled={isDeleting}>{isDeleting ? 'Deleting...' : 'Delete account'}</button>
+        </div>
+      </section>
+    </div>, document.body)}
+    {reportDeleteCandidate && createPortal(<div className="modal-backdrop delete-confirm-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !isDeleting) setReportDeleteCandidate(null)
+    }}>
+      <section className="delete-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-user-reports-title" aria-describedby="delete-user-reports-description">
+        <span className="delete-confirm-icon"><Trash2 size={22} /></span>
+        <h2 id="delete-user-reports-title">This account has reports</h2>
+        <p id="delete-user-reports-description">{reportDeleteCandidate.user.name} has {reportDeleteCandidate.reportCount} report{reportDeleteCandidate.reportCount === 1 ? '' : 's'}. Deleting the account will also permanently delete those reports and their linked comments, attachments, history, and notifications. Comments on other residents’ reports will remain but show “Deleted account” as the author. Continue?</p>
+        <div className="delete-confirm-actions">
+          <button type="button" className="button button-quiet" onClick={() => setReportDeleteCandidate(null)} disabled={isDeleting}>Cancel</button>
+          <button type="button" className="button button-delete" onClick={() => void confirmDeleteWithReports()} disabled={isDeleting}>{isDeleting ? 'Deleting...' : 'Delete account and reports'}</button>
+        </div>
+      </section>
+    </div>, document.body)}
+    {deleteResultMessage && createPortal(<div className="modal-backdrop delete-confirm-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) setDeleteResultMessage(null)
+    }}>
+      <section className="delete-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-user-result-title" aria-describedby="delete-user-result-description">
+        <span className="delete-confirm-icon"><Trash2 size={22} /></span>
+        <h2 id="delete-user-result-title">Account not deleted</h2>
+        <p id="delete-user-result-description">{deleteResultMessage}</p>
+        <div className="delete-confirm-actions">
+          <button type="button" className="button button-primary" onClick={() => setDeleteResultMessage(null)}>Close</button>
         </div>
       </section>
     </div>, document.body)}

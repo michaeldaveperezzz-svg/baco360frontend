@@ -34,6 +34,10 @@ export interface UpdateUserData {
   password?: string
 }
 
+export interface DeleteUserResult {
+  cleanup_warning?: string
+}
+
 export interface ChangePasswordData {
   current_password: string
   password: string
@@ -317,10 +321,11 @@ export const userService = {
     return response
   },
 
-  async deleteUser(id: number): Promise<ApiResponse<null>> {
-    return apiRequest<null>({
+  async deleteUser(id: number, deleteLinkedReports = false): Promise<ApiResponse<DeleteUserResult | null>> {
+    return apiRequest<DeleteUserResult | null>({
       method: 'DELETE',
       url: API_ENDPOINTS.DELETE_USER(id),
+      data: deleteLinkedReports ? { delete_linked_reports: true } : undefined,
     })
   },
 

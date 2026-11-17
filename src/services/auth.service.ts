@@ -23,7 +23,12 @@ export interface RegisterData {
   password_confirmation: string
 }
 
-export interface RegisterResponse {
+export interface CodeTiming {
+  expires_in_seconds: number
+  resend_after_seconds: number
+}
+
+export interface RegisterResponse extends CodeTiming {
   email: string
   verification_email_sent: boolean
 }
@@ -88,7 +93,7 @@ export const authService = {
     })
   },
 
-  async resendEmailVerification(email: string): Promise<ApiResponse<{ requested: boolean }>> {
+  async resendEmailVerification(email: string): Promise<ApiResponse<{ requested: boolean } & CodeTiming>> {
     return apiRequest({
       method: 'POST',
       url: API_ENDPOINTS.RESEND_EMAIL_VERIFICATION,
@@ -104,7 +109,7 @@ export const authService = {
     })
   },
 
-  async requestPasswordReset(email: string): Promise<ApiResponse<{ requested: boolean }>> {
+  async requestPasswordReset(email: string): Promise<ApiResponse<{ requested: boolean } & CodeTiming>> {
     return apiRequest({
       method: 'POST',
       url: API_ENDPOINTS.REQUEST_PASSWORD_RESET,

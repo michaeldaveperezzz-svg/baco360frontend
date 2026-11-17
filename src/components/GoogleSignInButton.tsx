@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { API_CONFIG } from '../config/api.config'
+import AuthLoadingModal from './AuthLoadingModal'
 
 interface GoogleCredentialResponse {
   credential?: string
@@ -123,7 +124,10 @@ export default function GoogleSignInButton({ intent, onCredential }: Props) {
   return (
     <div className={`google-signin${isLoading ? ' is-loading' : ''}`}>
       <div ref={buttonContainer} className="google-signin-button" aria-label={intent === 'sign_in' ? 'Continue with Google' : 'Sign up with Google'} />
-      {isLoading && <span className="google-signin-status" role="status">Signing in with Google...</span>}
+      {isLoading && <AuthLoadingModal
+        title={intent === 'sign_in' ? 'Signing in with Google' : 'Creating your account with Google'}
+        message="Please wait while we securely verify your Google account."
+      />}
       {error && <p className="auth-feedback auth-feedback-error" role="alert">{error}</p>}
     </div>
   )

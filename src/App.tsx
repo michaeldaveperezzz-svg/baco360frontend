@@ -26,12 +26,13 @@ import WebsiteContentPage from './pages/WebsiteContentPage'
 import TwoFactorAuthPage from './pages/TwoFactorAuthPage'
 import LandingPage from './pages/LandingPage.tsx'
 import SuccessModal from './components/SuccessModal'
+import AuthLoadingModal from './components/AuthLoadingModal'
 import AnnouncementModal from './components/AnnouncementModal'
 import EmergencyContactsModal from './components/EmergencyContactsModal'
 import { type Category, type Notification, type Report, type User, type UserRole } from './data/types'
 import type { ViewKey } from './types'
 import { applyLanguage, type Language } from './i18n'
-import { authService } from './services/auth.service'
+import { authService, type CodeTiming } from './services/auth.service'
 import { reportsService, type SubmitReportData, type UpdateReportData } from './services/reports.service'
 import { categoriesService } from './services/categories.service'
 import { userService, type ChangePasswordData, type CreateUserData, type UpdateProfileData, type UpdateUserData } from './services/user.service'
@@ -68,6 +69,7 @@ function AppContent() {
   })
   const [hasAnnouncementDeepLink] = useState(() => new URLSearchParams(window.location.search).get('announcements') === '1')
   const [pendingAuthEmail, setPendingAuthEmail] = useState('')
+  const [authLoadingMessage, setAuthLoadingMessage] = useState<string | null>(null)
   const [successNotice, setSuccessNotice] = useState<{ id: number; message: string } | null>(null)
   const nextSuccessIdRef = useRef(0)
   const deepLinkHandledRef = useRef(false)
@@ -405,28 +407,40 @@ function AppContent() {
     }
   }
   async function handle2FAVerify(code: string, email: string) { await verify2FA(code, email) }
-  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<{ email: string; verificationEmailSent: boolean }> {
+  async function registerUser(name: string, email: string, phone: string, password: string, passwordConfirmation: string): Promise<{ email: string; verificationEmailSent: boolean } & CodeTiming> {
     const response = await authService.register({ name, email, phone, password, password_confirmation: passwordConfirmation })
     if (!response.success || !response.data) throw new Error(response.message || 'Registration failed')
-    return { email: response.data.email, verificationEmailSent: response.data.verification_email_sent }
+    return {
+      email: response.data.email,
+      verificationEmailSent: response.data.verification_email_sent,
+      expires_in_seconds: response.data.expires_in_seconds,
+      resend_after_seconds: response.data.resend_after_seconds,
+    }
   }
   async function resendEmailVerification(email: string) {
     const response = await authService.resendEmailVerification(email)
-    if (!response.success) throw new Error(response.message || 'Could not request an email verification code.')
+    if (!response.success || !response.data) throw new Error(response.message || 'Could not request an email verification code.')
+    return response.data
   }
   async function verifyEmail(email: string, code: string) {
-    const response = await authService.verifyEmail(email, code)
-    const result = response.data
-    if (!response.success || !result?.email_verified || !result.user || !result.tokens?.access_token || !result.tokens.refresh_token) {
-      throw new Error(response.message || 'Email verification failed.')
+    setAuthLoadingMessage('Verifying your email and signing you in...')
+    try {
+      const response = await authService.verifyEmail(email, code)
+      const result = response.data
+      if (!response.success || !result?.email_verified || !result.user || !result.tokens?.access_token || !result.tokens.refresh_token) {
+        throw new Error(response.message || 'Email verification failed.')
+      }
+      authenticateWithTokens(result.user, result.tokens.access_token, result.tokens.refresh_token)
+      setView('resident-dashboard')
+      return { welcomeEmailSent: result.welcome_email_sent }
+    } finally {
+      setAuthLoadingMessage(null)
     }
-    authenticateWithTokens(result.user, result.tokens.access_token, result.tokens.refresh_token)
-    setView('resident-dashboard')
-    return { welcomeEmailSent: result.welcome_email_sent }
   }
   async function requestPasswordReset(email: string) {
     const response = await authService.requestPasswordReset(email)
-    if (!response.success) throw new Error(response.message || 'Could not request a password reset.')
+    if (!response.success || !response.data) throw new Error(response.message || 'Could not request a password reset.')
+    return response.data
   }
   async function verifyPasswordResetCode(email: string, code: string) {
     const response = await authService.verifyPasswordResetCode(email, code)
@@ -464,11 +478,25 @@ function AppContent() {
     setUsers((current) => current.map((user) => Number(user.id) === Number(userId) ? response.data : user))
     showSuccess('User updated successfully.')
   }
-  async function deleteUser(userId: number) {
-    const response = await userService.deleteUser(userId)
+  async function deleteUser(userId: number, deleteLinkedReports = false) {
+    const response = await userService.deleteUser(userId, deleteLinkedReports)
     if (!response.success) throw new Error(response.message || 'Failed to delete user')
     setUsers((current) => current.filter((user) => Number(user.id) !== Number(userId)))
-    showSuccess('User deleted successfully.')
+    if (deleteLinkedReports) {
+      const deletedReportIds = new Set(reports
+        .filter((report) => Number(report.resident_id) === Number(userId))
+        .map((report) => Number(report.id)))
+      setReports((current) => current.filter((report) => Number(report.resident_id) !== Number(userId)))
+      setNotifications((current) => current.filter((notification) =>
+        notification.report_id === null || !deletedReportIds.has(Number(notification.report_id))))
+      setSelectedReportId((current) => current !== null && deletedReportIds.has(current) ? null : current)
+    }
+    const successMessage = deleteLinkedReports
+      ? 'User and linked reports deleted successfully.'
+      : 'User deleted successfully.'
+    showSuccess(response.data?.cleanup_warning
+      ? `${successMessage} ${response.data.cleanup_warning}`
+      : successMessage)
   }
   async function toggleUser(userId: number) {
     const target = users.find((candidate) => Number(candidate.id) === Number(userId))
@@ -542,8 +570,9 @@ function AppContent() {
   }
   async function handleLogout() { await logout(); setView('landing'); setIsEmergencyContactsModalOpen(false); setReports([]); setCategories([]); setUsers([]) }
 
-  if (isAuthLoading) return <div className="auth-loading" role="status">Restoring your session...</div>
-  if (view === 'landing') return <LandingPage
+  if (isAuthLoading) return <><div className="auth-loading" role="status">Restoring your session...</div>{authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}</>
+  if (view === 'landing') return <>
+    <LandingPage
     onLogin={handleLogin}
     onRegister={registerUser}
     onResendEmailVerification={resendEmailVerification}
@@ -552,7 +581,9 @@ function AppContent() {
     onVerifyPasswordResetCode={verifyPasswordResetCode}
     onResetPassword={resetPassword}
     onGoogleSignIn={handleGoogleSignIn}
-  />
+    />
+    {authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}
+  </>
   if (view === '2fa') return <><div className="auth-wrapper"><LanguageSelect language={language} onLanguageChange={changeLanguage} /><TwoFactorAuthPage email={pendingAuthEmail} onVerify={handle2FAVerify} onBack={() => setView('landing')} /></div></>
   return <>
     <div className={`app-shell${role === 'resident' ? ' app-shell--resident' : ''}`}>
@@ -584,6 +615,7 @@ function AppContent() {
       {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
     </div>
     {isEmergencyContactsModalOpen && <EmergencyContactsModal role={role} language={language} onClose={() => setIsEmergencyContactsModalOpen(false)} />}
+    {authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}
     {selectedAnnouncement && <AnnouncementModal
       title={selectedAnnouncement.report_title ?? (language === 'tl' ? 'Announcement' : 'Announcement')}
       message={selectedAnnouncement.announcement_message ?? ''}

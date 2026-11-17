@@ -22,6 +22,7 @@ interface Props {
   onUpdateReport?: (reportId: number, updates: UpdateReportData) => Promise<void>
   onDeleteReport?: (reportId: number) => Promise<void>
   onAssignReport?: (reportId: number, staffId: number) => Promise<void>
+  onStaffFieldsSaved?: () => void
 }
 
 function getErrorMessage(error: unknown): string {
@@ -41,6 +42,7 @@ export default function ReportDetailModal({
   onUpdateReport,
   onDeleteReport,
   onAssignReport,
+  onStaffFieldsSaved,
 }: Props) {
   const [comment, setComment] = useState('')
   const [commentPhoto, setCommentPhoto] = useState<File | null>(null)
@@ -159,6 +161,7 @@ export default function ReportDetailModal({
     try {
       if (hasReportFieldChanges) await onUpdateReport?.(report.id, updates)
       if (assignmentChanged) await onAssignReport?.(report.id, Number(selectedStaffId))
+      onStaffFieldsSaved?.()
     } catch (updateError) {
       setError(getErrorMessage(updateError))
     } finally {

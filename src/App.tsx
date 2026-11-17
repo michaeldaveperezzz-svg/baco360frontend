@@ -314,7 +314,6 @@ function AppContent() {
     const response = await reportsService.updateReport(reportId, updates)
     if (!response.success || !response.data) throw new Error(response.message || 'Failed to update report')
     setReports((current) => current.map((report) => Number(report.id) === Number(reportId) ? response.data : report))
-    showSuccess('Report updated successfully.')
   }
 
   async function deleteReport(reportId: number) {
@@ -395,7 +394,6 @@ function AppContent() {
     const response = await reportsService.assignReport(reportId, { staff_id: staffId, department: 'General', assignment_notes: 'Assigned via dashboard' })
     if (!response.success || !response.data) throw new Error(response.message || 'Failed to assign report')
     setReports((current) => current.map((report) => Number(report.id) === Number(reportId) ? response.data : report))
-    showSuccess('Report assignment updated successfully.')
   }
 
   async function handleLogin(email: string, password: string, remember: boolean, reactivate = false) {
@@ -612,7 +610,7 @@ function AppContent() {
       </div>
       {role === 'resident' && <ResidentBottomNav view={view} onNavigate={navigate} />}
       {role === 'admin' && isAdminAttachmentModalOpen && <ReportAttachmentsPage reports={reports} categories={categories} onOpenReport={openReportFromAttachments} isLoading={isReportsLoading} isModal onClose={() => setIsAdminAttachmentModalOpen(false)} />}
-      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
+      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} onStaffFieldsSaved={() => showSuccess('Report changes saved successfully.')} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
     </div>
     {isEmergencyContactsModalOpen && <EmergencyContactsModal role={role} language={language} onClose={() => setIsEmergencyContactsModalOpen(false)} />}
     {authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}

@@ -22,7 +22,6 @@ interface Props {
   onUpdateReport?: (reportId: number, updates: UpdateReportData) => Promise<void>
   onDeleteReport?: (reportId: number) => Promise<void>
   onAssignReport?: (reportId: number, staffId: number) => Promise<void>
-  onStaffFieldsSaved?: () => void
 }
 
 function getErrorMessage(error: unknown): string {
@@ -42,7 +41,6 @@ export default function ReportDetailModal({
   onUpdateReport,
   onDeleteReport,
   onAssignReport,
-  onStaffFieldsSaved,
 }: Props) {
   const [comment, setComment] = useState('')
   const [commentPhoto, setCommentPhoto] = useState<File | null>(null)
@@ -54,6 +52,7 @@ export default function ReportDetailModal({
   const [selectedStaffId, setSelectedStaffId] = useState(String(assignedStaffId ?? ''))
   const [error, setError] = useState<string | null>(null)
   const [savingStaffFields, setSavingStaffFields] = useState(false)
+  const [staffFieldsSaved, setStaffFieldsSaved] = useState(false)
   const [savingComment, setSavingComment] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -158,10 +157,11 @@ export default function ReportDetailModal({
 
     setSavingStaffFields(true)
     setError(null)
+    setStaffFieldsSaved(false)
     try {
       if (hasReportFieldChanges) await onUpdateReport?.(report.id, updates)
       if (assignmentChanged) await onAssignReport?.(report.id, Number(selectedStaffId))
-      onStaffFieldsSaved?.()
+      setStaffFieldsSaved(true)
     } catch (updateError) {
       setError(getErrorMessage(updateError))
     } finally {
@@ -263,11 +263,12 @@ export default function ReportDetailModal({
         <PriorityBadge priority={report.priority} status={report.status} />
       </div>
       {isStaff && <form id="staff-edit-form" className={`staff-edit-controls${canAssign ? ' staff-edit-controls--assignable' : ''}`} onSubmit={(event) => void saveStaffFields(event)}>
-        <label>Status<select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as ReportStatus)} disabled={savingStaffFields}>{['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'reopened'].map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select></label>
-        <label>Priority<select value={selectedPriority} onChange={(event) => setSelectedPriority(event.target.value as Report['priority'])} disabled={savingStaffFields}>{['low', 'medium', 'high', 'urgent'].map((priority) => <option value={priority} key={priority}>{priority}</option>)}</select></label>
-        {canAssign && <label>Assign to<select value={selectedStaffId} onChange={(event) => setSelectedStaffId(event.target.value)} disabled={savingStaffFields}><option value="" disabled={Boolean(assignedStaffId)}>Unassigned</option>{staffUsers.map((user) => <option value={user.id} key={user.id}>{user.name}</option>)}</select></label>}
+        <label>Status<select value={selectedStatus} onChange={(event) => { setSelectedStatus(event.target.value as ReportStatus); setStaffFieldsSaved(false) }} disabled={savingStaffFields}>{['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'reopened'].map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select></label>
+        <label>Priority<select value={selectedPriority} onChange={(event) => { setSelectedPriority(event.target.value as Report['priority']); setStaffFieldsSaved(false) }} disabled={savingStaffFields}>{['low', 'medium', 'high', 'urgent'].map((priority) => <option value={priority} key={priority}>{priority}</option>)}</select></label>
+        {canAssign && <label>Assign to<select value={selectedStaffId} onChange={(event) => { setSelectedStaffId(event.target.value); setStaffFieldsSaved(false) }} disabled={savingStaffFields}><option value="" disabled={Boolean(assignedStaffId)}>Unassigned</option>{staffUsers.map((user) => <option value={user.id} key={user.id}>{user.name}</option>)}</select></label>}
       </form>}
       {error && <p className="form-error" role="alert">{error}</p>}
+      {staffFieldsSaved && <p className="report-save-notice" role="status">Report changes saved successfully.</p>}
       <p className="modal-description">{report.description}</p>
 
       {report.attachments.length > 0 && <div className="attachment-list">

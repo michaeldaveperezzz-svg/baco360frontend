@@ -303,7 +303,6 @@ function AppContent() {
       const response = await reportsService.submitReport(report)
       if (response.success) {
         await loadInitialData()
-        showSuccess('Report submitted successfully.')
         return { referenceNumber: response.data.reference_number, attachmentWarning: response.data.attachment_upload_warning }
       }
       throw new Error(response.message || 'Failed to submit report')
@@ -610,7 +609,7 @@ function AppContent() {
       </div>
       {role === 'resident' && <ResidentBottomNav view={view} onNavigate={navigate} />}
       {role === 'admin' && isAdminAttachmentModalOpen && <ReportAttachmentsPage reports={reports} categories={categories} onOpenReport={openReportFromAttachments} isLoading={isReportsLoading} isModal onClose={() => setIsAdminAttachmentModalOpen(false)} />}
-      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} onStaffFieldsSaved={() => showSuccess('Report changes saved successfully.')} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
+      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
     </div>
     {isEmergencyContactsModalOpen && <EmergencyContactsModal role={role} language={language} onClose={() => setIsEmergencyContactsModalOpen(false)} />}
     {authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}

@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, ShieldCheck, X } from 'lucide-react'
 import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
 import { useCodeCountdown, formatCodeCountdown } from '../hooks/useCodeCountdown'
-import type { CodeTiming } from '../services/auth.service'
+import type { CodeTiming, GoogleSignInResult } from '../services/auth.service'
 
 interface Props { 
   onRegister: (name: string, email: string, phone: string, password: string, passwordConfirmation: string) => Promise<{ email: string; verificationEmailSent: boolean } & CodeTiming>
@@ -12,8 +12,8 @@ interface Props {
   onVerifyEmail: (email: string, code: string) => Promise<{ welcomeEmailSent: boolean }>
   onBack: () => void 
   onOpenLegal: (document: 'terms' | 'privacy') => void
-  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
-  onRequireGoogleSignupConsent: (idToken: string) => void
+  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<GoogleSignInResult>
+  onRequireGoogleSignupConsent: (idToken: string, continueSignup: (idToken: string) => Promise<void>) => void
   acceptedTerms: boolean
   onAcceptedTermsChange: (accepted: boolean) => void
   modal: true
@@ -132,6 +132,20 @@ export default function RegisterPage(props: Props) {
     }
   }
 
+  async function continueGoogleSignup(idToken: string) {
+    const result = await onGoogleSignIn(idToken, 'sign_up')
+    if (!result.requiresEmailVerification) return
+    setEmail(result.verification.email)
+    setVerificationCode('')
+    setVerificationError('')
+    setVerificationComplete(false)
+    setVerificationNotice(result.verification.verificationEmailSent
+      ? ''
+      : 'Your account is pending verification, but the email could not be sent. Please request a new code.')
+    codeCountdown.start(result.verification)
+    setVerificationModalOpen(true)
+  }
+
   function closeVerificationModal() {
     setVerificationModalOpen(false)
     setVerificationNotice('')
@@ -199,12 +213,12 @@ export default function RegisterPage(props: Props) {
           <div className="auth-divider"><span>Or sign up with</span></div>
           <GoogleSignInButton
             intent="sign_up"
-            onCredential={async (idToken, intent) => {
+            onCredential={async (idToken) => {
               if (!acceptedTerms) {
-                onRequireGoogleSignupConsent(idToken)
+                onRequireGoogleSignupConsent(idToken, continueGoogleSignup)
                 return
               }
-              await onGoogleSignIn(idToken, intent)
+              await continueGoogleSignup(idToken)
             }}
           />
         </div>

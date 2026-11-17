@@ -4,7 +4,7 @@ import { ArrowRight, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck, X } 
 import Brand from '../components/Brand'
 import GoogleSignInButton from '../components/GoogleSignInButton'
 import { useCodeCountdown, formatCodeCountdown } from '../hooks/useCodeCountdown'
-import type { CodeTiming } from '../services/auth.service'
+import type { CodeTiming, GoogleSignInResult } from '../services/auth.service'
 
 interface Props { 
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
@@ -13,7 +13,7 @@ interface Props {
   onRequestPasswordReset: (email: string) => Promise<CodeTiming>
   onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
   onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
-  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
+  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<GoogleSignInResult>
   modal: true
 }
 

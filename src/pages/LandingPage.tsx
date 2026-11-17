@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowDown, ArrowRight, CircleHelp, FilePlus2, MapPinned, MessageSquareText, ShieldCheck, X } from 'lucide-react'
 import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 import { websiteContentImageUrl, websiteContentService, type WebsiteContentData } from '../services/websiteContent.service'
-import type { CodeTiming } from '../services/auth.service'
+import type { CodeTiming, GoogleSignInResult } from '../services/auth.service'
 
 interface Props {
   onLogin: (email: string, password: string, remember: boolean, reactivate?: boolean) => void | Promise<void>
@@ -14,7 +14,7 @@ interface Props {
   onRequestPasswordReset: (email: string) => Promise<CodeTiming>
   onVerifyPasswordResetCode: (email: string, code: string) => Promise<void>
   onResetPassword: (email: string, code: string, password: string, passwordConfirmation: string) => Promise<void>
-  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<void>
+  onGoogleSignIn: (idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') => Promise<GoogleSignInResult>
 }
 
 const faqs = [
@@ -45,6 +45,7 @@ export default function LandingPage({ onLogin, onRegister, onResendEmailVerifica
   const [legalModal, setLegalModal] = useState<'terms' | 'privacy' | null>(null)
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false)
   const [googleSignupToken, setGoogleSignupToken] = useState<string | null>(null)
+  const googleSignupContinuation = useRef<((idToken: string) => Promise<void>) | null>(null)
   const [googleConsentSubmitting, setGoogleConsentSubmitting] = useState(false)
   const [googleConsentError, setGoogleConsentError] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState(() => {
@@ -78,6 +79,7 @@ export default function LandingPage({ onLogin, onRegister, onResendEmailVerifica
   function openAuthModal(next: 'sign-in' | 'sign-up' | null) {
     setSignupTermsAccepted(false)
     setGoogleSignupToken(null)
+    googleSignupContinuation.current = null
     setGoogleConsentError(null)
     setGoogleConsentSubmitting(false)
     setAuthModal(next)
@@ -87,8 +89,9 @@ export default function LandingPage({ onLogin, onRegister, onResendEmailVerifica
     openAuthModal(null)
   }
 
-  function requestGoogleSignupConsent(idToken: string) {
+  function requestGoogleSignupConsent(idToken: string, continueSignup: (idToken: string) => Promise<void>) {
     setGoogleSignupToken(idToken)
+    googleSignupContinuation.current = continueSignup
     setGoogleConsentError(null)
     setLegalModal('terms')
   }
@@ -96,15 +99,17 @@ export default function LandingPage({ onLogin, onRegister, onResendEmailVerifica
   function closeLegalModal() {
     setLegalModal(null)
     setGoogleSignupToken(null)
+    googleSignupContinuation.current = null
     setGoogleConsentError(null)
   }
 
   async function continueGoogleSignup() {
-    if (!googleSignupToken || !signupTermsAccepted || googleConsentSubmitting) return
+    const continueSignup = googleSignupContinuation.current
+    if (!googleSignupToken || !continueSignup || !signupTermsAccepted || googleConsentSubmitting) return
     setGoogleConsentSubmitting(true)
     setGoogleConsentError(null)
     try {
-      await onGoogleSignIn(googleSignupToken, 'sign_up')
+      await continueSignup(googleSignupToken)
       closeLegalModal()
     } catch (reason) {
       setGoogleConsentError(reason instanceof Error ? reason.message : 'Google sign-up failed. Please try again.')
@@ -160,6 +165,7 @@ export default function LandingPage({ onLogin, onRegister, onResendEmailVerifica
           setAuthModal(null)
           setSignupTermsAccepted(false)
           setGoogleSignupToken(null)
+          googleSignupContinuation.current = null
           setGoogleConsentError(null)
           setGoogleConsentSubmitting(false)
         }

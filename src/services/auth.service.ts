@@ -28,6 +28,31 @@ export interface CodeTiming {
   resend_after_seconds: number
 }
 
+export interface GoogleSignupVerificationResponse extends CodeTiming {
+  requires_email_verification: true
+  email: string
+  verification_email_sent: boolean
+}
+
+export interface GoogleSessionResponse {
+  user: User
+  tokens: {
+    access_token: string
+    refresh_token: string
+  }
+}
+
+export type GoogleSignInResponse = GoogleSignupVerificationResponse | GoogleSessionResponse
+
+export interface GoogleSignupVerification extends CodeTiming {
+  email: string
+  verificationEmailSent: boolean
+}
+
+export type GoogleSignInResult =
+  | { requiresEmailVerification: true; verification: GoogleSignupVerification }
+  | { requiresEmailVerification: false }
+
 export interface RegisterResponse extends CodeTiming {
   email: string
   verification_email_sent: boolean
@@ -133,11 +158,8 @@ export const authService = {
     })
   },
 
-  async googleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate'): Promise<ApiResponse<{
-    user: User
-    tokens: { access_token: string; refresh_token: string }
-  }>> {
-    return apiRequest({
+  async googleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate'): Promise<ApiResponse<GoogleSignInResponse>> {
+    return apiRequest<GoogleSignInResponse>({
       method: 'POST',
       url: API_ENDPOINTS.GOOGLE_SIGN_IN,
       data: { id_token: idToken, intent },

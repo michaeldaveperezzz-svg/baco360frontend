@@ -32,7 +32,7 @@ import EmergencyContactsModal from './components/EmergencyContactsModal'
 import { type Category, type Notification, type Report, type User, type UserRole } from './data/types'
 import type { ViewKey } from './types'
 import { applyLanguage, type Language } from './i18n'
-import { authService, type CodeTiming } from './services/auth.service'
+import { authService, type CodeTiming, type GoogleSignInResult } from './services/auth.service'
 import { reportsService, type SubmitReportData, type UpdateReportData } from './services/reports.service'
 import { categoriesService } from './services/categories.service'
 import { userService, type ChangePasswordData, type CreateUserData, type UpdateProfileData, type UpdateUserData } from './services/user.service'
@@ -459,14 +459,32 @@ function AppContent() {
     })
     if (!response.success) throw new Error(response.message || 'Password reset failed.')
   }
-  async function handleGoogleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate') {
+  async function handleGoogleSignIn(idToken: string, intent: 'sign_in' | 'sign_up' | 'reactivate'): Promise<GoogleSignInResult> {
     const response = await authService.googleSignIn(idToken, intent)
     const result = response.data
-    if (!response.success || !result?.user || !result.tokens?.access_token || !result.tokens?.refresh_token) {
+    if (!response.success || !result) {
+      throw new Error(response.message || 'Google sign-in failed. Please try again.')
+    }
+    if ('requires_email_verification' in result) {
+      if (intent !== 'sign_up') {
+        throw new Error('The server requested an unexpected email verification step.')
+      }
+      return {
+        requiresEmailVerification: true,
+        verification: {
+          email: result.email,
+          verificationEmailSent: result.verification_email_sent,
+          expires_in_seconds: result.expires_in_seconds,
+          resend_after_seconds: result.resend_after_seconds,
+        },
+      }
+    }
+    if (!result.user || !result.tokens?.access_token || !result.tokens?.refresh_token) {
       throw new Error(response.message || 'Google sign-in failed. Please try again.')
     }
     authenticateWithTokens(result.user, result.tokens.access_token, result.tokens.refresh_token)
     setView(result.user.role === 'staff' ? 'staff-dashboard' : result.user.role === 'admin' ? 'admin-dashboard' : 'resident-dashboard')
+    return { requiresEmailVerification: false }
   }
   async function addUser(data: CreateUserData) {
     const response = await userService.createUser(data)

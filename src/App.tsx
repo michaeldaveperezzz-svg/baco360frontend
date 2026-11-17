@@ -93,6 +93,11 @@ function AppContent() {
     setSuccessNotice({ id: nextSuccessIdRef.current, message })
   }
 
+  function finishReportFieldSave() {
+    setSelectedReportId(null)
+    showSuccess('Report changes saved successfully.')
+  }
+
   const dismissSuccess = useCallback(() => setSuccessNotice(null), [])
 
   useEffect(() => {
@@ -609,7 +614,7 @@ function AppContent() {
       </div>
       {role === 'resident' && <ResidentBottomNav view={view} onNavigate={navigate} />}
       {role === 'admin' && isAdminAttachmentModalOpen && <ReportAttachmentsPage reports={reports} categories={categories} onOpenReport={openReportFromAttachments} isLoading={isReportsLoading} isModal onClose={() => setIsAdminAttachmentModalOpen(false)} />}
-      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
+      {selectedReport && <ReportDetailModal key={selectedReport.id} report={selectedReport} categories={categories} isStaff={role !== 'resident'} canAssign={role === 'admin'} canDelete={role === 'admin' || (role === 'resident' && selectedReport.status === 'submitted' && Number(selectedReport.resident_id) === Number(user?.id))} canViewCommunityPost={role === 'admin' || role === 'staff'} onClose={() => setSelectedReportId(null)} onAddComment={addComment} onUpdateReport={updateReport} onDeleteReport={deleteReport} onAssignReport={assignReport} onStaffFieldsSaved={finishReportFieldSave} staffUsers={users.filter((u) => u.role === 'staff' && u.is_active)} />}
     </div>
     {isEmergencyContactsModalOpen && <EmergencyContactsModal role={role} language={language} onClose={() => setIsEmergencyContactsModalOpen(false)} />}
     {authLoadingMessage && <AuthLoadingModal title="Verifying your email" message={authLoadingMessage} />}
